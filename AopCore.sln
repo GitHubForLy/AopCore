@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AopCore", "AopCore\AopCore.csproj", "{AE7E5BA0-77D4-4CEE-8519-A6E449C54C28}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AopWeaver", "AopWeaver\AopWeaver.csproj", "{2B8D1B77-979F-4222-A251-E6C0F1DEAB48}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestAop", "TestAop\TestAop.csproj", "{C9DC7036-2046-474F-A91D-0848CCAAC0EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AE7E5BA0-77D4-4CEE-8519-A6E449C54C28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE7E5BA0-77D4-4CEE-8519-A6E449C54C28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE7E5BA0-77D4-4CEE-8519-A6E449C54C28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE7E5BA0-77D4-4CEE-8519-A6E449C54C28}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B8D1B77-979F-4222-A251-E6C0F1DEAB48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B8D1B77-979F-4222-A251-E6C0F1DEAB48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B8D1B77-979F-4222-A251-E6C0F1DEAB48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B8D1B77-979F-4222-A251-E6C0F1DEAB48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9DC7036-2046-474F-A91D-0848CCAAC0EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9DC7036-2046-474F-A91D-0848CCAAC0EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9DC7036-2046-474F-A91D-0848CCAAC0EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9DC7036-2046-474F-A91D-0848CCAAC0EB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {91C06910-998A-4B1D-8E19-ABA382BFFA14}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,11 @@
+F:\GitHub\AopCore\TestAop\bin\Debug\TestAop.exe
+F:\GitHub\AopCore\TestAop\bin\Debug\TestAop.pdb
+F:\GitHub\AopCore\TestAop\bin\Debug\AopCore.dll
+F:\GitHub\AopCore\TestAop\bin\Debug\Mono.Cecil.dll
+F:\GitHub\AopCore\TestAop\bin\Debug\AopCore.pdb
+F:\GitHub\AopCore\TestAop\bin\Debug\Mono.Cecil.pdb
+F:\GitHub\AopCore\TestAop\obj\Debug\TestAop.csprojAssemblyReference.cache
+F:\GitHub\AopCore\TestAop\obj\Debug\TestAop.csproj.CoreCompileInputs.cache
+F:\GitHub\AopCore\TestAop\obj\Debug\TestAop.csproj.CopyComplete
+F:\GitHub\AopCore\TestAop\obj\Debug\TestAop.exe
+F:\GitHub\AopCore\TestAop\obj\Debug\TestAop.pdb
