@@ -113,11 +113,10 @@ namespace AopCore
             }
 
 
-            ////添加新的静态字段已保存当前方法反射信息
-            //FieldDefinition newField = new FieldDefinition("method_info_" + method.Name,
-            //    FieldAttributes.Static | FieldAttributes.SpecialName, m_types.Sys_MethodInfo);
-            //classDef.Fields.Add(newField);
-
+            //添加新的静态字段以保存当前方法反射信息
+            FieldDefinition newField = new FieldDefinition("method_info_" + method.Name,
+                FieldAttributes.Static | FieldAttributes.SpecialName, m_types.Sys_MethodInfo);
+            classDef.Fields.Add(newField);
 
 
 
@@ -125,11 +124,18 @@ namespace AopCore
             proces.Body.Variables.Add(new VariableDefinition(m_types.MethodHookAttrType));
             int argindex = proces.Body.Variables.Count - 1;
 
-            //生成ExecuteArgs对象
-            //proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldnull));
-            //proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld,newField));
-            //proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, newField));
+            var lb1 = proces.Create(OpCodes.Nop);
+            //if (null == method_info_xxx)
+            //   method_info_xxx = MethodBase.GetCurrentMethod();
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldnull));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, newField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ceq));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Brfalse_S, lb1));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Call, m_types.Sys_GetCurrentMethodType));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stsfld, newField));
+            proces.InsertBefore(firstInstr, lb1);
+            //生成ExecuteArgs对象
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, newField));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Newobj, m_types.MethodExecuteArgsCtor));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stloc, argindex));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc,argindex));
@@ -188,13 +194,14 @@ namespace AopCore
             var set_method = new MethodDefinition("hook_set_"+field.Name,
                 MethodAttributes.Public|MethodAttributes.HideBySig|MethodAttributes.SpecialName,m_types.Sys_Void);
 
-
             var tarctor = attr.AttributeType.Resolve().Methods.First(m => m.Name == ".ctor");
             if (tarctor == null)
             {
                 m_Notify.Notify(NotifyLevel.Warning, "目标特性没有无参构造方法:" + attr.AttributeType.Name);
                 return;
             }
+
+          
 
             var processor=set_method.Body.GetILProcessor();
             processor.Append(processor.Create(OpCodes.Newobj, tarctor));

@@ -12,3 +12,4 @@ F:\GitHub\AopCore\AopCore\obj\Debug\AopCore.csproj.CoreCompileInputs.cache
 F:\GitHub\AopCore\AopCore\obj\Debug\AopCore.csproj.CopyComplete
 F:\GitHub\AopCore\AopCore\obj\Debug\AopCore.dll
 F:\GitHub\AopCore\AopCore\obj\Debug\AopCore.pdb
+F:\GitHub\AopCore\AopCore\obj\Debug\AopCore.csprojAssemblyReference.cache
