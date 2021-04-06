@@ -8,7 +8,7 @@ using Mono.Cecil;
 
 namespace AopCore
 {
-    public sealed class Types
+    internal sealed class Types
     {
         AssemblyDefinition m_Assembly;
         AssemblyDefinition m_myAssemby;

@@ -8,30 +8,46 @@ using Mono.Cecil.Cil;
 
 namespace AopCore
 {
-    public class WeaveCore
+    internal class WeaveCore
     {
         private AssemblyDefinition m_Assemby;
+        private AssemblyDefinition m_MainAssemby;
         private INotify m_Notify;
         private Types m_types;
+        private bool m_dependency;
 
         private Dictionary<FieldDefinition, MethodDefinition> replaceFields = new Dictionary<FieldDefinition, MethodDefinition>();
         private List<(TypeDefinition classdef,FieldDefinition field)> fieldinfoFields = new List<(TypeDefinition, FieldDefinition)>();
-        public WeaveCore(string assembly,INotify notify)
+        public WeaveCore(string assembly,bool weaveDependency=false,INotify notify=null)
         {
             ReaderParameters readerParameters = new ReaderParameters();
             readerParameters.ReadWrite = true;
             //readerParameters.InMemory = true;
-            m_Assemby = AssemblyDefinition.ReadAssembly(assembly, readerParameters);
-
-            this.m_Notify = notify;
-            m_types = new Types(m_Assemby);
+            m_MainAssemby = AssemblyDefinition.ReadAssembly(assembly, readerParameters);
+            m_Notify = notify;
+            m_dependency = weaveDependency;
         }
 
         public void Weave()
         {
+            WeaveAssembly(m_MainAssemby);
+            if(m_dependency)
+            {
+                foreach (var ass in m_Assemby.MainModule.AssemblyReferences)
+                {
+                    WeaveAssembly(AssemblyDefinition.ReadAssembly(ass.Name));
+                }
+            }
+        }
+
+
+        public void WeaveAssembly(AssemblyDefinition assembly)
+        {
+            m_Assemby = assembly;
+            m_types = new Types(assembly);
             if (HasWeaved())
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标程序集已被编织");
+                m_Notify?.Notify(NotifyLevel.Warning, "目标程序集已被编织");
                 return;
             }
 
@@ -117,7 +133,7 @@ namespace AopCore
             var tarctor = attr.AttributeType.Resolve().Methods.First(m => m.Name == ".ctor");
             if (tarctor == null)
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标特性没有无参构造方法:"+attr.AttributeType.Name);
+                m_Notify?.Notify(NotifyLevel.Warning, "目标特性没有无参构造方法:"+attr.AttributeType.Name);
                 return;
             }
 
@@ -182,17 +198,17 @@ namespace AopCore
         {
             if (field.IsStatic)
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标字段不能是静态的:" + field.FullName);
+                m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是静态的:" + field.FullName);
                 return false;
             }
             if (field.ContainsGenericParameter)
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标字段不能包含泛型参数:" + field.FullName);
+                m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能包含泛型参数:" + field.FullName);
                 return false;
             }
             if (field.FieldType.Resolve().IsInterface)
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
+                m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
                 return false;
             }
             return true;
