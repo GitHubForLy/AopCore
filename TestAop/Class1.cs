@@ -49,7 +49,7 @@ namespace TestAop
         public void TestMethod()
         {
             tst = "sdf";
-            vc = 234;
+            vc = 324;
 
 
             Console.WriteLine("testMethod");

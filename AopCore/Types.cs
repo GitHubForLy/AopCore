@@ -36,6 +36,7 @@ namespace AopCore
             var FiledHookAttrTypeDefention = FiledHookAttrType.Resolve();
             FiledHookAttrCtor=assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m=>m.Name==".ctor"));
             FiledHookAttrSetValueMethod= assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m => m.Name == nameof(FiledHookAttribute.SetValue)));
+            FiledHookAttrOnSetValueMethod = assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m => m.Name == nameof(FiledHookAttribute.OnSetValue)));
 
             var MethodBaseType = assembly.MainModule.ImportReference(typeof(MethodBase)).Resolve();
             Sys_GetCurrentMethodType =assembly.MainModule.ImportReference(MethodBaseType.Methods.First(m => m.Name == nameof(MethodBase.GetCurrentMethod)));
@@ -44,7 +45,12 @@ namespace AopCore
             Sys_Int32 = assembly.MainModule.ImportReference(typeof(Int32));
             Sys_Void = assembly.MainModule.ImportReference(typeof(void));
             Sys_MethodInfo = assembly.MainModule.ImportReference(typeof(MethodInfo));
+            Sys_FieldInfo = assembly.MainModule.ImportReference(typeof(FieldInfo));
 
+            var typedef = assembly.MainModule.ImportReference(typeof(Type)).Resolve();
+
+            Sys_GetTypeMethod = assembly.MainModule.ImportReference(ObjectType.Resolve().Methods.First(m => m.Name == nameof(object.GetType)));
+            Sys_GetFieldInfoMethod = assembly.MainModule.ImportReference(typedef.Methods.First(m => m.Name == nameof(Type.GetField)&& m.Parameters.Count==1));
         }
 
         /// <summary>
@@ -76,6 +82,12 @@ namespace AopCore
         /// <see cref="AopCore.FiledHookAttribute.SetValue(string, string, object)"/>方法
         /// </summary>
         public MethodReference FiledHookAttrSetValueMethod { get; }
+
+        /// <summary>
+        /// <see cref="AopCore.FiledHookAttribute.OnSetValue(FieldInfo, object)"/>方法
+        /// </summary>
+        public MethodReference FiledHookAttrOnSetValueMethod { get; }
+
         /// <summary>
         /// <see cref="AopCore.MethodHookAttribute"/>构造方法
         /// </summary>
@@ -120,5 +132,8 @@ namespace AopCore
 
         public TypeReference Sys_Void { get; }
         public TypeReference Sys_MethodInfo { get; }
+        public TypeReference Sys_FieldInfo { get; }
+        public MethodReference Sys_GetTypeMethod { get;}
+        public MethodReference Sys_GetFieldInfoMethod { get; }
     }
 }

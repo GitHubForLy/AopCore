@@ -15,7 +15,7 @@ namespace AopCore
         private Types m_types;
 
         private Dictionary<FieldDefinition, MethodDefinition> replaceFields = new Dictionary<FieldDefinition, MethodDefinition>();
-
+        private List<(TypeDefinition classdef,FieldDefinition field)> fieldinfoFields = new List<(TypeDefinition, FieldDefinition)>();
         public WeaveCore(string assembly,INotify notify)
         {
             ReaderParameters readerParameters = new ReaderParameters();
@@ -94,8 +94,17 @@ namespace AopCore
                     }
                 }
 
+                //将新加的静态字段添加到对应类中
+                for(int i=fieldinfoFields.Count-1;i>=0;i--)
+                {
+                    fieldinfoFields[i].classdef.Fields.Add(fieldinfoFields[i].field);
+                    fieldinfoFields.RemoveAt(i);
+                }
+
                 ReplaceFields(type);
             }
+
+            SetFieldSetMethod();
         }
 
         private void WeaveMethod(TypeDefinition classDef,MethodDefinition method,CustomAttribute attr)
@@ -192,7 +201,7 @@ namespace AopCore
         private void WeaveFileds(TypeDefinition classType,FieldDefinition field, CustomAttribute attr)
         {
             var set_method = new MethodDefinition("hook_set_"+field.Name,
-                MethodAttributes.Public|MethodAttributes.HideBySig|MethodAttributes.SpecialName,m_types.Sys_Void);
+                MethodAttributes.Public|MethodAttributes.HideBySig|MethodAttributes.SpecialName, m_types.Sys_Void);
 
             var tarctor = attr.AttributeType.Resolve().Methods.First(m => m.Name == ".ctor");
             if (tarctor == null)
@@ -201,16 +210,39 @@ namespace AopCore
                 return;
             }
 
-          
+            FieldDefinition newfield = new FieldDefinition("field_info_" + field.Name,
+                FieldAttributes.Static | FieldAttributes.SpecialName, m_types.Sys_FieldInfo);
+            fieldinfoFields.Add((classType,newfield));
 
             var processor=set_method.Body.GetILProcessor();
-            processor.Append(processor.Create(OpCodes.Newobj, tarctor));
-            processor.Append(processor.Create(OpCodes.Ldstr, field.DeclaringType.FullName));
+
+            //给创建的静态字段赋值(如果为空)
+            var lb1 = processor.Create(OpCodes.Nop);
+            processor.Append(processor.Create(OpCodes.Ldnull));
+            processor.Append(processor.Create(OpCodes.Ldsfld, newfield));
+            processor.Append(processor.Create(OpCodes.Ceq));
+            processor.Append(processor.Create(OpCodes.Brfalse_S, lb1));
+            processor.Append(processor.Create(OpCodes.Ldarg_0));
+            processor.Append(processor.Create(OpCodes.Call, m_types.Sys_GetTypeMethod));
             processor.Append(processor.Create(OpCodes.Ldstr, field.Name));
+            processor.Append(processor.Create(OpCodes.Callvirt, m_types.Sys_GetFieldInfoMethod));
+            processor.Append(processor.Create(OpCodes.Stsfld, newfield));
+            processor.Append(lb1);
+
+            //调用Hook特性方法
+            processor.Append(processor.Create(OpCodes.Newobj, tarctor));
+            processor.Append(processor.Create(OpCodes.Ldsfld, newfield));
             processor.Append(processor.Create(OpCodes.Ldarg_1));
-            if(field.FieldType.IsValueType)
+            if (field.FieldType.IsValueType)
                 processor.Append(processor.Create(OpCodes.Box, field.FieldType));
-            processor.Append(processor.Create(OpCodes.Call, m_types.FiledHookAttrSetValueMethod));
+            processor.Append(processor.Create(OpCodes.Callvirt, m_types.FiledHookAttrOnSetValueMethod));
+            processor.Append(processor.Create(OpCodes.Nop));
+
+            //延迟对原字段的赋值 否则会引起死循环
+            //processor.Append(processor.Create(OpCodes.Ldarg_0));
+            //processor.Append(processor.Create(OpCodes.Ldarg_1));
+            //processor.Append(processor.Create(OpCodes.Stfld, field));
+
             processor.Append(processor.Create(OpCodes.Ret));
 
             set_method.Parameters.Add(new ParameterDefinition("value",ParameterAttributes.In,field.FieldType));
@@ -220,9 +252,11 @@ namespace AopCore
             replaceFields.Add(field, set_method);
         }
 
+        //将原来给目标字段赋值的指令 替换为调用该字段的set方法
         private void ReplaceFields(TypeDefinition classDefiniton)
         {
-            foreach(var method in classDefiniton.Methods)
+
+            foreach (var method in classDefiniton.Methods)
             {
                 if (!method.HasBody || method.Body.Instructions == null)
                     continue;
@@ -230,11 +264,27 @@ namespace AopCore
                 foreach(var instruction in method.Body.Instructions)
                 {
                     if(instruction.OpCode==OpCodes.Stfld && replaceFields.ContainsKey((FieldDefinition)instruction.Operand))
-                    {
+                    {                   
                         instruction.OpCode = OpCodes.Call;
                         instruction.Operand = replaceFields[(FieldDefinition)instruction.Operand];
                     }
                 }
+            }
+        }
+
+        //字段的set方法里添加 对原字段的赋值
+        private void SetFieldSetMethod()
+        {
+            foreach(var mf in replaceFields)
+            {
+                var method = mf.Value;
+                var field = mf.Key;
+
+                var processor = method.Body.GetILProcessor();
+                var lastins = method.Body.Instructions[method.Body.Instructions.Count - 1];
+                processor.InsertBefore(lastins, processor.Create(OpCodes.Ldarg_0));
+                processor.InsertBefore(lastins, processor.Create(OpCodes.Ldarg_1));
+                processor.InsertBefore(lastins, processor.Create(OpCodes.Stfld, field));
             }
         }
 
