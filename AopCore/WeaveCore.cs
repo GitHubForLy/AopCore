@@ -30,11 +30,20 @@ namespace AopCore
 
         public void Weave()
         {
+            var references = m_MainAssemby.MainModule.AssemblyReferences;
             WeaveAssembly(m_MainAssemby);
+
+            if(m_dependency)
+                m_Notify?.Notify(NotifyLevel.Message, "开始处理依赖项");
             if(m_dependency)
             {
-                foreach (var ass in m_Assemby.MainModule.AssemblyReferences)
+                var myass = System.Reflection.Assembly.GetCallingAssembly();
+                foreach (var ass in references)
                 {
+                    if (ass.Name == "mscorlib")
+                        continue;
+                    if (myass.FullName == ass.FullName)
+                        continue;
                     WeaveAssembly(AssemblyDefinition.ReadAssembly(ass.Name));
                 }
             }
@@ -44,17 +53,29 @@ namespace AopCore
         public void WeaveAssembly(AssemblyDefinition assembly)
         {
             m_Assemby = assembly;
-            m_types = new Types(assembly);
-            if (HasWeaved())
+            using(m_Assemby)
             {
-                m_Notify?.Notify(NotifyLevel.Warning, "目标程序集已被编织");
-                return;
-            }
+                try
+                {
+                    m_types = new Types(assembly);
+                }
+                catch (Exception e)
+                {
+                    m_Notify.Notify(NotifyLevel.Error, "构造 types错误:" + e.Message + "   ," + e.StackTrace);
+                    return;
+                }
 
-            WeaveFlag();
-            DoWeave();
+                if (HasWeaved())
+                {
+                    m_Notify?.Notify(NotifyLevel.Warning, "目标程序集已被编织");
+                    return;
+                }
 
-            m_Assemby.Write();
+                WeaveFlag();
+                DoWeave();
+
+                m_Assemby.Write();
+            }         
         }
 
         //植入标记类
@@ -206,11 +227,19 @@ namespace AopCore
                 m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能包含泛型参数:" + field.FullName);
                 return false;
             }
-            if (field.FieldType.Resolve().IsInterface)
-            {
-                m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
-                return false;
-            }
+            //try
+            //{
+            //    if (field.FieldType.Resolve().IsInterface)
+            //    {
+            //        m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
+            //        return false;
+            //    }
+            //}
+            //catch (AssemblyResolutionException)
+            //{
+            //    return false;
+            //}
+
             return true;
         }
 
@@ -279,10 +308,14 @@ namespace AopCore
 
                 foreach(var instruction in method.Body.Instructions)
                 {
-                    if(instruction.OpCode==OpCodes.Stfld && replaceFields.ContainsKey((FieldDefinition)instruction.Operand))
-                    {                   
-                        instruction.OpCode = OpCodes.Call;
-                        instruction.Operand = replaceFields[(FieldDefinition)instruction.Operand];
+                    if(instruction.OpCode==OpCodes.Stfld)
+                    {
+                        FieldDefinition field = instruction.Operand as FieldDefinition;
+                        if(field!=null &&  replaceFields.ContainsKey(field))
+                        {
+                            instruction.OpCode = OpCodes.Call;
+                            instruction.Operand = replaceFields[field];
+                        }
                     }
                 }
             }

@@ -45,7 +45,7 @@ namespace AopWeaver
             }
 
 
-            //Console.ReadKey();
+            Console.ReadKey();
         }
     }
 }

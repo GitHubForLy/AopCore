@@ -11,58 +11,37 @@ namespace AopCore
     internal sealed class Types
     {
         AssemblyDefinition m_Assembly;
-        AssemblyDefinition m_myAssemby;
         public Types(AssemblyDefinition assembly)
         {
             m_Assembly = assembly;
-            m_myAssemby=AssemblyDefinition.ReadAssembly(Assembly.GetExecutingAssembly().Location);
 
-            MethodHookAttrType = assembly.MainModule.ImportReference(m_myAssemby.MainModule.GetType(typeof(MethodHookAttribute).FullName));
-            FiledHookAttrType = assembly.MainModule.ImportReference(m_myAssemby.MainModule.GetType(typeof(FiledHookAttribute).FullName));
-            MethodExecuteArgsType = assembly.MainModule.ImportReference(m_myAssemby.MainModule.GetType(typeof(MethodExecuteArgs).FullName));
+            MethodHookAttrType=assembly.MainModule.ImportReference(typeof(MethodHookAttribute));
+            FiledHookAttrType = assembly.MainModule.ImportReference(typeof(FiledHookAttribute));
+            MethodExecuteArgsType = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs));
 
-            //Resolve之后就还原成原来程序集的类型了就白导入了 所以此处设为局部变量
-            var MethodHookAttrTypeDefention = MethodHookAttrType.Resolve();
-            MethodHookEnter = assembly.MainModule.ImportReference(MethodHookAttrTypeDefention.Methods.First(m => m.Name == nameof(MethodHookAttribute.OnMethodEnter)));
-            MethodHookLeave = assembly.MainModule.ImportReference(MethodHookAttrTypeDefention.Methods.First(m => m.Name == nameof(MethodHookAttribute.OnMethodLeave)));
-            MethodHookAttrCtor = assembly.MainModule.ImportReference(MethodHookAttrTypeDefention.Methods.First(m => m.Name ==".ctor"));
+            MethodHookEnter = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetMethod(nameof(MethodHookAttribute.OnMethodEnter)));
+            MethodHookLeave = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetMethod(nameof(MethodHookAttribute.OnMethodLeave)));
+            MethodHookAttrCtor = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetConstructor(Type.EmptyTypes));
 
-            //Resolve之后就还原成原来程序集的类型了就白导入了 所以此处设为局部变量
-            var MethodExecuteArgsTypeDefention = MethodExecuteArgsType.Resolve();
-            MethodExecuteArgsCtor = assembly.MainModule.ImportReference(MethodExecuteArgsTypeDefention.Methods.First(m => m.Name == ".ctor"));
-            MethodExecuteArgs_ParameterValues_Set = assembly.MainModule.ImportReference(MethodExecuteArgsTypeDefention.Methods.First(m => m.Name == "set_" + nameof(MethodExecuteArgs.ParameterValues)));
-            MethodExecuteArgs_ParameterValues_Get = assembly.MainModule.ImportReference(MethodExecuteArgsTypeDefention.Methods.First(m => m.Name == "get_" + nameof(MethodExecuteArgs.ParameterValues)));
+            MethodExecuteArgsCtor = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetConstructor(new Type[] { typeof(MethodBase)}));
+            MethodExecuteArgs_ParameterValues_Get = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetProperty(nameof(MethodExecuteArgs.ParameterValues)).GetGetMethod());
+            MethodExecuteArgs_ParameterValues_Set = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetProperty(nameof(MethodExecuteArgs.ParameterValues)).GetSetMethod());
 
-            var FiledHookAttrTypeDefention = FiledHookAttrType.Resolve();
-            FiledHookAttrCtor=assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m=>m.Name==".ctor"));
-            FiledHookAttrSetValueMethod= assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m => m.Name == nameof(FiledHookAttribute.SetValue)));
-            FiledHookAttrOnSetValueMethod = assembly.MainModule.ImportReference(FiledHookAttrTypeDefention.Methods.First(m => m.Name == nameof(FiledHookAttribute.OnSetValue)));
+            FiledHookAttrCtor = assembly.MainModule.ImportReference(typeof(FiledHookAttribute).GetConstructor(Type.EmptyTypes));
+            FiledHookAttrOnSetValueMethod = assembly.MainModule.ImportReference(typeof(FiledHookAttribute).GetMethod(nameof(FiledHookAttribute.OnSetValue)));
 
-            var MethodBaseType = assembly.MainModule.ImportReference(typeof(MethodBase)).Resolve();
-            Sys_GetCurrentMethodType =assembly.MainModule.ImportReference(MethodBaseType.Methods.First(m => m.Name == nameof(MethodBase.GetCurrentMethod)));
+            Sys_GetCurrentMethodType = assembly.MainModule.ImportReference(typeof(MethodBase).GetMethod(nameof(MethodBase.GetCurrentMethod)));
 
             ObjectType = assembly.MainModule.ImportReference(typeof(object));
-            Sys_Int32 = assembly.MainModule.ImportReference(typeof(Int32));
+            Sys_Int32 = assembly.MainModule.ImportReference(typeof(int));
             Sys_Void = assembly.MainModule.ImportReference(typeof(void));
             Sys_MethodInfo = assembly.MainModule.ImportReference(typeof(MethodInfo));
             Sys_FieldInfo = assembly.MainModule.ImportReference(typeof(FieldInfo));
 
-            var typedef = assembly.MainModule.ImportReference(typeof(Type)).Resolve();
-
-            Sys_GetTypeMethod = assembly.MainModule.ImportReference(ObjectType.Resolve().Methods.First(m => m.Name == nameof(object.GetType)));
-            Sys_GetFieldInfoMethod = assembly.MainModule.ImportReference(typedef.Methods.First(m => m.Name == nameof(Type.GetField)&& m.Parameters.Count==1));
+            Sys_GetTypeMethod = assembly.MainModule.ImportReference(typeof(object).GetMethod(nameof(object.GetType)));
+            Sys_GetFieldInfoMethod = assembly.MainModule.ImportReference(typeof(Type).GetMethod(nameof(Type.GetField),new Type[] { typeof(string)}));
         }
 
-        /// <summary>
-        /// 获取目标程序集的字段信息
-        /// </summary>
-        /// <param name="field"></param>
-        /// <returns></returns>
-        public FieldInfo GetTargetFieldInfo(FieldDefinition field)
-        {
-            var assembly = Assembly.ReflectionOnlyLoadFrom(m_Assembly.MainModule.FileName);
-            return assembly.GetType(field.DeclaringType.FullName).GetField(field.Name);
-        }
 
         /// <summary>
         /// <see cref="AopCore.MethodHookAttribute"/>类型
@@ -77,11 +56,6 @@ namespace AopCore
         /// <see cref="AopCore.FiledHookAttribute"/>构造方法
         /// </summary>
         public MethodReference FiledHookAttrCtor { get; }
-
-        /// <summary>
-        /// <see cref="AopCore.FiledHookAttribute.SetValue(string, string, object)"/>方法
-        /// </summary>
-        public MethodReference FiledHookAttrSetValueMethod { get; }
 
         /// <summary>
         /// <see cref="AopCore.FiledHookAttribute.OnSetValue(FieldInfo, object)"/>方法

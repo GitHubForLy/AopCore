@@ -15,10 +15,19 @@ namespace AopCore
         {
             if (!File.Exists(AssemblyName))
                 notify?.Notify(NotifyLevel.Error, "目标程序集不存在");
+            try
+            {
+                WeaveCore core = new WeaveCore(AssemblyName, weaveDependency, notify);
+                core.Weave();
+            }
+            catch(Exception e)
+            {
+                if (notify != null)
+                    notify.Notify(NotifyLevel.Error, e.Message+"  stacktrace:"+e.StackTrace);
+                else
+                    throw e;
+            }
 
-
-            WeaveCore core = new WeaveCore(AssemblyName, weaveDependency, notify);
-            core.Weave();
         }
 
         public static void Weave(string AssemblyName, bool weaveDependency=false)
