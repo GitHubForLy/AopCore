@@ -14,28 +14,34 @@ namespace AopCore
         private AssemblyDefinition m_MainAssemby;
         private INotify m_Notify;
         private Types m_types;
-        private bool m_dependency;
 
         private Dictionary<FieldDefinition, MethodDefinition> replaceFields = new Dictionary<FieldDefinition, MethodDefinition>();
         private List<(TypeDefinition classdef,FieldDefinition field)> fieldinfoFields = new List<(TypeDefinition, FieldDefinition)>();
-        public WeaveCore(string assembly,bool weaveDependency=false,INotify notify=null)
+        public WeaveCore(string assembly,string[] serarchPaths,INotify notify=null)
         {
             ReaderParameters readerParameters = new ReaderParameters();
             readerParameters.ReadWrite = true;
+            DefaultAssemblyResolver assemblyResolver = new DefaultAssemblyResolver();
+            if(serarchPaths!=null)
+            {
+                foreach (var path in serarchPaths)
+                    assemblyResolver.AddSearchDirectory(path);
+            }
+            readerParameters.AssemblyResolver = assemblyResolver;
+
             //readerParameters.InMemory = true;
             m_MainAssemby = AssemblyDefinition.ReadAssembly(assembly, readerParameters);
             m_Notify = notify;
-            m_dependency = weaveDependency;
         }
 
-        public void Weave()
+        public void Weave(bool weaveDenpendceny=false)
         {
             var references = m_MainAssemby.MainModule.AssemblyReferences;
             WeaveAssembly(m_MainAssemby);
 
-            if(m_dependency)
+            if(weaveDenpendceny)
                 m_Notify?.Notify(NotifyLevel.Message, "开始处理依赖项");
-            if(m_dependency)
+            if(weaveDenpendceny)
             {
                 var myass = System.Reflection.Assembly.GetCallingAssembly();
                 foreach (var ass in references)
@@ -227,18 +233,19 @@ namespace AopCore
                 m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能包含泛型参数:" + field.FullName);
                 return false;
             }
-            //try
-            //{
-            //    if (field.FieldType.Resolve().IsInterface)
-            //    {
-            //        m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
-            //        return false;
-            //    }
-            //}
-            //catch (AssemblyResolutionException)
-            //{
-            //    return false;
-            //}
+            try
+            {
+                if (field.FieldType.Resolve().IsInterface)
+                {
+                    m_Notify?.Notify(NotifyLevel.Warning, "目标字段不能是接口类型:" + field.FullName);
+                    return false;
+                }
+            }
+            catch (AssemblyResolutionException e)
+            {
+                m_Notify.Notify(NotifyLevel.Warning, e.Message + " st:" + e.StackTrace+" fie:"+e.FileName+" xc:"+e.FusionLog+" cv"+e.AssemblyReference.Name);
+                return false;
+            }
 
             return true;
         }

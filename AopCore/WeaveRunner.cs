@@ -8,22 +8,31 @@ using Mono.Cecil;
 
 namespace AopCore
 {
+    public class WeavePamater
+    {
+        public string AssemblyName { get; set; }
+        public bool WeaveDependency { get; set; } = false;
+        public INotify Notify { get; set; }
+        public string[] SerachPaths { get; set; }
+
+    }
+
     public class WeaveRunner
     {
 
-        public static void Weave(string AssemblyName,bool weaveDependency,INotify notify)
+        public static void Weave(WeavePamater weavePamater)
         {
-            if (!File.Exists(AssemblyName))
-                notify?.Notify(NotifyLevel.Error, "目标程序集不存在");
+            if (!File.Exists(weavePamater.AssemblyName))
+                weavePamater.Notify?.Notify(NotifyLevel.Error, "目标程序集不存在");
             try
             {
-                WeaveCore core = new WeaveCore(AssemblyName, weaveDependency, notify);
-                core.Weave();
+                WeaveCore core = new WeaveCore(weavePamater.AssemblyName,weavePamater.SerachPaths,weavePamater.Notify);
+                core.Weave(weavePamater.WeaveDependency);
             }
             catch(Exception e)
             {
-                if (notify != null)
-                    notify.Notify(NotifyLevel.Error, e.Message+"  stacktrace:"+e.StackTrace);
+                if (weavePamater.Notify != null)
+                    weavePamater.Notify?.Notify(NotifyLevel.Error, e.Message+"  stacktrace:"+e.StackTrace);
                 else
                     throw e;
             }
@@ -32,7 +41,7 @@ namespace AopCore
 
         public static void Weave(string AssemblyName, bool weaveDependency=false)
         {
-            Weave(AssemblyName, weaveDependency, null);
+            Weave(new WeavePamater { AssemblyName=AssemblyName,WeaveDependency=weaveDependency});
         }
     }
 }
