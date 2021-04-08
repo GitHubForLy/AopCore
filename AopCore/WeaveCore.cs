@@ -160,47 +160,66 @@ namespace AopCore
             var tarctor = attr.AttributeType.Resolve().Methods.First(m => m.Name == ".ctor");
             if (tarctor == null)
             {
-                m_Notify?.Notify(NotifyLevel.Warning, "目标特性没有无参构造方法:"+attr.AttributeType.Name);
+                m_Notify?.Notify(NotifyLevel.Warning, "获取目标特性参构造方法失败:"+attr.AttributeType.Name);
                 return;
             }
 
 
             //添加新的静态字段以保存当前方法反射信息
-            FieldDefinition newField = new FieldDefinition("method_info_" + method.Name,
+            FieldDefinition methodField = new FieldDefinition("method_info_" + method.Name,
                 FieldAttributes.Static | FieldAttributes.SpecialName, m_types.Sys_MethodInfo);
-            classDef.Fields.Add(newField);
+            classDef.Fields.Add(methodField);
 
+            //添加新的静态字段以保存当前方法的特性实例
+            FieldDefinition attrField = new FieldDefinition("attr_method_instacne_" + method.Name,
+                FieldAttributes.Static | FieldAttributes.SpecialName, attr.AttributeType);
+            classDef.Fields.Add(attrField);
 
 
             proces.Body.InitLocals = true;
-            proces.Body.Variables.Add(new VariableDefinition(m_types.MethodHookAttrType));
-            int argindex = proces.Body.Variables.Count - 1;
+            proces.Body.Variables.Add(new VariableDefinition(m_types.Sys_ObjArray));
+            proces.Body.Variables.Add(new VariableDefinition(m_types.MethodExecuteArgsType));
+            int varObjarray = proces.Body.Variables.Count - 2;
+            int varArgs = proces.Body.Variables.Count - 1;
 
-            var lb1 = proces.Create(OpCodes.Nop);
+
             //if (null == method_info_xxx)
             //   method_info_xxx = MethodBase.GetCurrentMethod();
+            var lb1 = proces.Create(OpCodes.Nop);
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldnull));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, newField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, methodField));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ceq));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Brfalse_S, lb1));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Call, m_types.Sys_GetCurrentMethodType));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stsfld, newField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stsfld, methodField));
             proces.InsertBefore(firstInstr, lb1);
-            //生成ExecuteArgs对象
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, newField));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Newobj, m_types.MethodExecuteArgsCtor));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stloc, argindex));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc,argindex));
+
+            //if (null == attr_instacne_xxx)
+            //   attr_method_instacne_xxx = method_info_xxx.GetCustomAttribute(typeof(myattr),true);
+            var lb2 = proces.Create(OpCodes.Nop);
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldnull));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, attrField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ceq));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Brfalse_S, lb2));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, methodField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldtoken, attr.AttributeType));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Call, m_types.Sys_GetTypeFromHandle));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldc_I4_1));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Call, m_types.Sys_GetCustomAttribute));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stsfld, attrField));
+            proces.InsertBefore(firstInstr, lb2);
+
+            // var objarr=new object[x];
+            //objarr[x]=xx;
+            //objarr[x]=xx;
+            //      ...
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldc_I4, method.Parameters.Count));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Newarr, m_types.ObjectType));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Callvirt, m_types.MethodExecuteArgs_ParameterValues_Set));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Nop));
-
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stloc,varObjarray));
             //赋值参数
             for (int i = 0; i < method.Parameters.Count; i++)
             {
-                proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc,argindex));
-                proces.InsertBefore(firstInstr, proces.Create(OpCodes.Callvirt, m_types.MethodExecuteArgs_ParameterValues_Get));
+                proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc, varObjarray));
                 proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldc_I4, i));
                 proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldarg, i + 1));
                 if (method.Parameters[i].ParameterType.IsValueType)
@@ -208,15 +227,27 @@ namespace AopCore
                 proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stelem_Ref));
             }
 
+            //var args=new MethodExecuteArgs(method_info_xxx,this);
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, methodField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldarg_0));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Newobj, m_types.MethodExecuteArgsCtor));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Stloc, varArgs));
+            //args.ParameterValues=objarr;
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc, varArgs));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc, varObjarray));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Callvirt, m_types.MethodExecuteArgs_ParameterValues_Set));
+
             //实例化目标特性 并调用Enter方法
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Newobj, tarctor));
-            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc,argindex));
+            //attr_instacne_xxx.MethodHookEnter(args);
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldsfld, attrField));
+            proces.InsertBefore(firstInstr, proces.Create(OpCodes.Ldloc, varArgs));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Callvirt, m_types.MethodHookEnter));
             proces.InsertBefore(firstInstr, proces.Create(OpCodes.Nop));
 
             //实例化目标特性 并调用Leave方法
-            proces.InsertBefore(lastInstr, proces.Create(OpCodes.Newobj, tarctor));
-            proces.InsertBefore(lastInstr, proces.Create(OpCodes.Ldloc,argindex));
+            //attr_instacne_xxx.MethodHookLeave(args);
+            proces.InsertBefore(lastInstr, proces.Create(OpCodes.Ldsfld, attrField));
+            proces.InsertBefore(lastInstr, proces.Create(OpCodes.Ldloc, varArgs));
             proces.InsertBefore(lastInstr, proces.Create(OpCodes.Callvirt, m_types.MethodHookLeave));
             proces.InsertBefore(lastInstr, proces.Create(OpCodes.Nop));
         }
@@ -243,7 +274,7 @@ namespace AopCore
             }
             catch (AssemblyResolutionException e)
             {
-                m_Notify.Notify(NotifyLevel.Warning, e.Message + " st:" + e.StackTrace+" fie:"+e.FileName+" xc:"+e.FusionLog+" cv"+e.AssemblyReference.Name);
+                m_Notify.Notify(NotifyLevel.Warning, e.Message + "  解析目标字段失败,字段:" + field.FullName);
                 return false;
             }
 
@@ -256,37 +287,69 @@ namespace AopCore
                 MethodAttributes.Public|MethodAttributes.HideBySig|MethodAttributes.SpecialName, m_types.Sys_Void);
 
             var tarctor = attr.AttributeType.Resolve().Methods.First(m => m.Name == ".ctor");
-            if (tarctor == null)
+            if (tarctor == null )
             {
-                m_Notify.Notify(NotifyLevel.Warning, "目标特性没有无参构造方法:" + attr.AttributeType.Name);
+                m_Notify.Notify(NotifyLevel.Warning, "获取目标特性构造方法失败:" + attr.AttributeType.Name);
                 return;
             }
 
-            FieldDefinition newfield = new FieldDefinition("field_info_" + field.Name,
+            FieldDefinition infoField = new FieldDefinition("field_info_" + field.Name,
                 FieldAttributes.Static | FieldAttributes.SpecialName, m_types.Sys_FieldInfo);
-            fieldinfoFields.Add((classType,newfield));
+            fieldinfoFields.Add((classType, infoField));
+
+            FieldDefinition attrfield = new FieldDefinition("attr_field_instance_" + field.Name,
+            FieldAttributes.Static | FieldAttributes.SpecialName, attr.AttributeType);
+            fieldinfoFields.Add((classType, attrfield));
+
 
             var processor=set_method.Body.GetILProcessor();
+            processor.Body.InitLocals = true;
+            processor.Body.Variables.Add(new VariableDefinition(m_types.FieldUpdateArgsType));
+            int varindex = processor.Body.Variables.Count - 1;
 
             //给创建的静态字段赋值(如果为空)
+            //if(field_info_xxx==null)
+            //   field_info_xxx=this.GetType().GetFieldInfo(xxx);
             var lb1 = processor.Create(OpCodes.Nop);
             processor.Append(processor.Create(OpCodes.Ldnull));
-            processor.Append(processor.Create(OpCodes.Ldsfld, newfield));
+            processor.Append(processor.Create(OpCodes.Ldsfld, infoField));
             processor.Append(processor.Create(OpCodes.Ceq));
             processor.Append(processor.Create(OpCodes.Brfalse_S, lb1));
             processor.Append(processor.Create(OpCodes.Ldarg_0));
             processor.Append(processor.Create(OpCodes.Call, m_types.Sys_GetTypeMethod));
             processor.Append(processor.Create(OpCodes.Ldstr, field.Name));
             processor.Append(processor.Create(OpCodes.Callvirt, m_types.Sys_GetFieldInfoMethod));
-            processor.Append(processor.Create(OpCodes.Stsfld, newfield));
+            processor.Append(processor.Create(OpCodes.Stsfld, infoField));
             processor.Append(lb1);
 
-            //调用Hook特性方法
-            processor.Append(processor.Create(OpCodes.Newobj, tarctor));
-            processor.Append(processor.Create(OpCodes.Ldsfld, newfield));
+            //if (null == attr_instacne_xxx)
+            //   attr_field_instance_xxx = field_info_xxx.GetCustomAttribute(typeof(myattr),true);
+            var lb2 = processor.Create(OpCodes.Nop);
+           processor.Append(processor.Create(OpCodes.Ldnull));
+           processor.Append(processor.Create(OpCodes.Ldsfld, attrfield));
+           processor.Append(processor.Create(OpCodes.Ceq));
+           processor.Append(processor.Create(OpCodes.Brfalse_S, lb2));
+           processor.Append(processor.Create(OpCodes.Ldsfld, infoField));
+           processor.Append(processor.Create(OpCodes.Ldtoken, attr.AttributeType));
+           processor.Append(processor.Create(OpCodes.Call, m_types.Sys_GetTypeFromHandle));
+           processor.Append(processor.Create(OpCodes.Ldc_I4_1));
+           processor.Append(processor.Create(OpCodes.Call, m_types.Sys_GetCustomAttribute));
+           processor.Append(processor.Create(OpCodes.Stsfld, attrfield));
+            processor.Append(lb2);
+
+            //:: var xx1= new FieldUpdateArgs(newfield,this,value);
+            processor.Append(processor.Create(OpCodes.Ldsfld, infoField));
+            processor.Append(processor.Create(OpCodes.Ldarg_0));
             processor.Append(processor.Create(OpCodes.Ldarg_1));
             if (field.FieldType.IsValueType)
                 processor.Append(processor.Create(OpCodes.Box, field.FieldType));
+            processor.Append(processor.Create(OpCodes.Newobj, m_types.FieldUpdateArgsCtor));
+            processor.Append(processor.Create(OpCodes.Stloc, varindex));
+
+            //调用Hook特性方法
+            //attr_field_instance_xxx.OnSetValue(args);
+            processor.Append(processor.Create(OpCodes.Ldsfld, attrfield));
+            processor.Append(processor.Create(OpCodes.Ldloc, varindex));
             processor.Append(processor.Create(OpCodes.Callvirt, m_types.FiledHookAttrOnSetValueMethod));
             processor.Append(processor.Create(OpCodes.Nop));
 

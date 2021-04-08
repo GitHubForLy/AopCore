@@ -9,10 +9,12 @@ namespace AopCore
 {
     public class MethodExecuteArgs
     {
-        public MethodExecuteArgs(MethodBase method)
+        public MethodExecuteArgs(MethodBase method,object instance)
         {
             this.Method = method;
+            this.Instance = instance;
         }
+        public object Instance { get; }
         public MethodBase Method { get; }
         public object[] ParameterValues { get; set; }
     }

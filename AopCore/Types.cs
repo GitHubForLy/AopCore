@@ -18,12 +18,14 @@ namespace AopCore
             MethodHookAttrType=assembly.MainModule.ImportReference(typeof(MethodHookAttribute));
             FiledHookAttrType = assembly.MainModule.ImportReference(typeof(FiledHookAttribute));
             MethodExecuteArgsType = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs));
+            FieldUpdateArgsType = assembly.MainModule.ImportReference(typeof(FieldUpdateArgs));
 
+            FieldUpdateArgsCtor = assembly.MainModule.ImportReference(typeof(FieldUpdateArgs).GetConstructor(new Type[] { typeof(FieldInfo), typeof(object),typeof(object) }));
             MethodHookEnter = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetMethod(nameof(MethodHookAttribute.OnMethodEnter)));
             MethodHookLeave = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetMethod(nameof(MethodHookAttribute.OnMethodLeave)));
             MethodHookAttrCtor = assembly.MainModule.ImportReference(typeof(MethodHookAttribute).GetConstructor(Type.EmptyTypes));
 
-            MethodExecuteArgsCtor = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetConstructor(new Type[] { typeof(MethodBase)}));
+            MethodExecuteArgsCtor = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetConstructor(new Type[] { typeof(MethodBase),typeof(object)}));
             MethodExecuteArgs_ParameterValues_Get = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetProperty(nameof(MethodExecuteArgs.ParameterValues)).GetGetMethod());
             MethodExecuteArgs_ParameterValues_Set = assembly.MainModule.ImportReference(typeof(MethodExecuteArgs).GetProperty(nameof(MethodExecuteArgs.ParameterValues)).GetSetMethod());
 
@@ -37,9 +39,12 @@ namespace AopCore
             Sys_Void = assembly.MainModule.ImportReference(typeof(void));
             Sys_MethodInfo = assembly.MainModule.ImportReference(typeof(MethodInfo));
             Sys_FieldInfo = assembly.MainModule.ImportReference(typeof(FieldInfo));
+            Sys_ObjArray = assembly.MainModule.ImportReference(typeof(object[]));
 
             Sys_GetTypeMethod = assembly.MainModule.ImportReference(typeof(object).GetMethod(nameof(object.GetType)));
             Sys_GetFieldInfoMethod = assembly.MainModule.ImportReference(typeof(Type).GetMethod(nameof(Type.GetField),new Type[] { typeof(string)}));
+            Sys_GetCustomAttribute = assembly.MainModule.ImportReference(typeof(CustomAttributeExtensions).GetMethod("GetCustomAttribute",new Type[] {typeof(MemberInfo),typeof(Type),typeof(bool) }));
+            Sys_GetTypeFromHandle = assembly.MainModule.ImportReference(typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle)));
         }
 
 
@@ -61,6 +66,15 @@ namespace AopCore
         /// <see cref="AopCore.FiledHookAttribute.OnSetValue(FieldInfo, object)"/>方法
         /// </summary>
         public MethodReference FiledHookAttrOnSetValueMethod { get; }
+        /// <summary>
+        /// <see cref="AopCore.FieldUpdateArgs"/>类型
+        /// </summary>
+        public TypeReference FieldUpdateArgsType { get; }
+
+        /// <summary>
+        /// <see cref="FieldUpdateArgs(FieldInfo, object)"/>构造方法
+        /// </summary>
+        public MethodReference FieldUpdateArgsCtor { get; }
 
         /// <summary>
         /// <see cref="AopCore.MethodHookAttribute"/>构造方法
@@ -109,5 +123,10 @@ namespace AopCore
         public TypeReference Sys_FieldInfo { get; }
         public MethodReference Sys_GetTypeMethod { get;}
         public MethodReference Sys_GetFieldInfoMethod { get; }
+        public MethodReference Sys_GetCustomAttribute { get; }
+
+        public MethodReference Sys_GetTypeFromHandle { get; }
+
+        public TypeReference Sys_ObjArray { get; }
     }
 }

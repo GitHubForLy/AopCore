@@ -10,7 +10,7 @@ namespace AopCore
 {
     public class FiledHookAttribute:Attribute
     {
-        public virtual void OnSetValue(FieldInfo field,object value)
+        public virtual void OnSetValue(FieldUpdateArgs args)
         {
 
         }

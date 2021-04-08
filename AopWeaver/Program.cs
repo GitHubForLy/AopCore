@@ -28,14 +28,15 @@ namespace AopWeaver
             }
             else if(args.Length==1)
             {
-                WeaveRunner.Weave(args[0], false,new ConsoleNotify());
+                
+                WeaveRunner.Weave(new WeavePamater { AssemblyName = args[0], WeaveDependency = false, Notify = new ConsoleNotify() });
                 Console.WriteLine("weave finished!");
             }    
             else if(args.Length>1)
             {
                 if(args[0]=="-b")
                 {
-                    WeaveRunner.Weave(args[1], true,new ConsoleNotify());
+                    WeaveRunner.Weave(new WeavePamater { AssemblyName = args[1], WeaveDependency = true, Notify = new ConsoleNotify() });
                     Console.WriteLine("weave finished!");
                 }
                 else
